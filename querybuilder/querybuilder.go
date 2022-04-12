@@ -3,14 +3,15 @@ package querybuilder
 import (
 	"context"
 	"errors"
-	"nextengine-sdk-go"
-	"nextengine-sdk-go/entity"
 	"strings"
+
+	"github.com/takaaki-s/nextengine-sdk-go/entity"
+	"github.com/takaaki-s/nextengine-sdk-go/nextengine"
 )
 
-func getAPI(model interface{}) (string, error) {
+func getAPI(e interface{}) (string, error) {
 	uri := ""
-	switch model.(type) {
+	switch e.(type) {
 	case *entity.LoginUser:
 		uri = "/api_v1_login_user"
 	case *entity.MasterShop:
@@ -62,40 +63,34 @@ func (q *QueryBuilder) Where(target, operator, value string) *QueryBuilder {
 	return q
 }
 
-func (q *QueryBuilder) Fetch(ctx context.Context, model nextengine.TokenGetter) error {
-	uri, err := getAPI(model)
+func (q *QueryBuilder) Fetch(ctx context.Context, e nextengine.TokenGetter) error {
+	uri, err := getAPI(e)
 	if err != nil {
 		return err
 	}
 	switch uri {
-	case "/api_v1_login_user":
+	case "/api_v1_login_user", "/api_v1_system_paymentmethod":
 		uri += "/info"
-	case "/api_v1_system_paymentmethod":
-		uri += "/info"
-	case "/api_v1_master_shop":
-		fallthrough
-	case "/api_v1_receiveorder_base":
+	case "/api_v1_master_shop", "/api_v1_receiveorder_base":
 		uri += "/search"
 	}
 
-	return q.do(ctx, model, uri)
+	return q.do(ctx, e, uri)
 }
 
-func (q *QueryBuilder) Count(ctx context.Context, model nextengine.TokenGetter) error {
-	uri, err := getAPI(model)
+func (q *QueryBuilder) Count(ctx context.Context, e nextengine.TokenGetter) error {
+	uri, err := getAPI(e)
 	if err != nil {
 		return err
 	}
 	switch uri {
-	case "/api_v1_login_user":
-		uri += "/count"
-	case "/api_v1_master_shop":
+	default:
 		uri += "/count"
 	}
-	return q.do(ctx, model, uri)
+	return q.do(ctx, e, uri)
 }
 
-func (q *QueryBuilder) do(ctx context.Context, model nextengine.TokenGetter, uri string) error {
+func (q *QueryBuilder) do(ctx context.Context, e nextengine.TokenGetter, uri string) error {
 
 	params := make(map[string]string)
 	if len(q.fields) > 0 {
@@ -105,7 +100,7 @@ func (q *QueryBuilder) do(ctx context.Context, model nextengine.TokenGetter, uri
 		params[k] = v
 	}
 
-	err := q.cli.APIExecute(ctx, uri, params, model)
+	err := q.cli.APIExecute(ctx, uri, params, e)
 	if err != nil {
 		return err
 	}

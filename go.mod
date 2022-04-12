@@ -1,3 +1,3 @@
-module nextengine-sdk-go
+module github.com/takaaki-s/nextengine-sdk-go
 
 go 1.17

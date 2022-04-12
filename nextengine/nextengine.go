@@ -7,8 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"nextengine-sdk-go/entity"
-	"nextengine-sdk-go/token"
+
+	"github.com/takaaki-s/nextengine-sdk-go/entity"
+	"github.com/takaaki-s/nextengine-sdk-go/repository"
 )
 
 const (
@@ -44,14 +45,14 @@ type Client struct {
 }
 
 // NewDefaultClient Returns an instance of the API client with default settings
-func NewDefaultClient(clientID string, clientSecret string, redirectURI string, accessToken string, refreshToken string) *Client {
+func NewDefaultClient(clientID, clientSecret, redirectURI, accessToken, refreshToken string) *Client {
 	cli := &http.Client{}
-	tr := token.NewMemoryTokenRepository(accessToken, refreshToken)
+	tr := repository.NewMemoryTokenRepository(accessToken, refreshToken)
 	return NewClient(clientID, clientSecret, redirectURI, cli, tr)
 }
 
 // NewClient Returns an instance of the API client
-func NewClient(clientID string, clientSecret string, redirectURI string, httpClient *http.Client, tr TokenRepository) *Client {
+func NewClient(clientID, clientSecret, redirectURI string, httpClient *http.Client, tr TokenRepository) *Client {
 	return &Client{
 		clientID:        clientID,
 		clientSecret:    clientSecret,
@@ -79,7 +80,7 @@ func (c *Client) AuthURI(extraParam url.Values) string {
 	return u.String()
 }
 
-func newRequest(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
+func newRequest(ctx context.Context, method, endpoint string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, endpoint, body)
 	if err != nil {
 		return nil, err
@@ -91,24 +92,24 @@ func newRequest(ctx context.Context, method string, endpoint string, body io.Rea
 }
 
 // Authorize Fetch API token using uid and state
-func (c *Client) Authorize(ctx context.Context, uid string, state string) (*entity.Authorize, error) {
+func (c *Client) Authorize(ctx context.Context, uid, state string) (*entity.Authorize, error) {
 	v := url.Values{
 		"client_id":     []string{c.clientID},
 		"client_secret": []string{c.clientSecret},
 		"uid":           []string{uid},
 		"state":         []string{state},
 	}
-	model := &entity.Authorize{}
-	err := c.request(ctx, "/api_neauth", v, model)
+	auth := &entity.Authorize{}
+	err := c.request(ctx, "/api_neauth", v, auth)
 	if err != nil {
 		return nil, err
 	}
-	return model, nil
+	return auth, nil
 }
 
 // APIExecute is Execute the API and return the result
 // Please specify a path starting with / for endpoint
-func (c *Client) APIExecute(ctx context.Context, endpoint string, params map[string]string, model TokenGetter) error {
+func (c *Client) APIExecute(ctx context.Context, endpoint string, params map[string]string, entity TokenGetter) error {
 	tok, err := c.TokenRepository.Token(ctx)
 	if err != nil {
 		return err
@@ -119,36 +120,36 @@ func (c *Client) APIExecute(ctx context.Context, endpoint string, params map[str
 		"refresh_token": []string{tok.RefreshToken},
 	}
 
-	return c.apiRequest(ctx, endpoint, v, params, model)
+	return c.apiRequest(ctx, endpoint, v, params, entity)
 }
 
 // APIExecuteNoRequiredLogin is Execute API that does not require login and return the result
 // Please specify a path starting with / for endpoint
-func (c *Client) APIExecuteNoRequiredLogin(ctx context.Context, endpoint string, params map[string]string, model TokenGetter) error {
+func (c *Client) APIExecuteNoRequiredLogin(ctx context.Context, endpoint string, params map[string]string, entity TokenGetter) error {
 	v := url.Values{
 		"client_id":     []string{c.clientID},
 		"client_secret": []string{c.clientSecret},
 	}
 
-	return c.apiRequest(ctx, endpoint, v, params, model)
+	return c.apiRequest(ctx, endpoint, v, params, entity)
 }
 
-func (c *Client) apiRequest(ctx context.Context, endpoint string, v url.Values, params map[string]string, model TokenGetter) error {
+func (c *Client) apiRequest(ctx context.Context, endpoint string, v url.Values, params map[string]string, entity TokenGetter) error {
 	for key, val := range params {
 		v.Add(key, val)
 	}
 
-	err := c.request(ctx, endpoint, v, model)
+	err := c.request(ctx, endpoint, v, entity)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Client) request(ctx context.Context, endpoint string, params url.Values, model TokenGetter) error {
+func (c *Client) request(ctx context.Context, endpoint string, params url.Values, entity TokenGetter) error {
 	u, _ := url.Parse(apiHost + endpoint)
 
-	httpRequest, err := newRequest(ctx, "POST", u.String(), bytes.NewBufferString(params.Encode()))
+	httpRequest, err := newRequest(ctx, http.MethodPost, u.String(), bytes.NewBufferString(params.Encode()))
 	if err != nil {
 		return err
 	}
@@ -159,15 +160,12 @@ func (c *Client) request(ctx context.Context, endpoint string, params url.Values
 	}
 
 	defer httpResponse.Body.Close()
-	return c.responseHandler(ctx, httpResponse.Body, model)
-}
 
-func (c *Client) responseHandler(ctx context.Context, body io.ReadCloser, model TokenGetter) error {
-	if err := json.NewDecoder(body).Decode(model); err != nil {
+	if err := json.NewDecoder(httpResponse.Body).Decode(entity); err != nil {
 		return err
 	}
 
-	tok := model.TokenValue()
+	tok := entity.TokenValue()
 
 	if tok.AccessToken != "" && tok.RefreshToken != "" {
 		if err := c.TokenRepository.Save(ctx, tok); err != nil {

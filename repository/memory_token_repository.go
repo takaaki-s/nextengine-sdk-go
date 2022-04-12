@@ -1,8 +1,9 @@
-package token
+package repository
 
 import (
 	"context"
-	"nextengine-sdk-go/entity"
+
+	"github.com/takaaki-s/nextengine-sdk-go/entity"
 )
 
 type MemoryTokenRepository struct {
