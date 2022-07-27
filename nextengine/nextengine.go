@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 
 	"github.com/takaaki-s/nextengine-sdk-go/entity"
 	"github.com/takaaki-s/nextengine-sdk-go/repository"
@@ -74,7 +75,9 @@ func (c *Client) AuthURI(extraParam url.Values) string {
 		}
 	}
 
-	u, _ := url.Parse(authHost + "/users/sign_in/")
+	u, _ := url.Parse(authHost)
+	u.Path = path.Join(u.Path, "users", "sign_in")
+	u.Path = u.Path + "/"
 	u.RawQuery = v.Encode()
 
 	return u.String()
@@ -147,7 +150,8 @@ func (c *Client) apiRequest(ctx context.Context, endpoint string, v url.Values, 
 }
 
 func (c *Client) request(ctx context.Context, endpoint string, params url.Values, entity TokenGetter) error {
-	u, _ := url.Parse(apiHost + endpoint)
+	u, _ := url.Parse(apiHost)
+	u.Path = path.Join(u.Path, endpoint)
 
 	httpRequest, err := newRequest(ctx, http.MethodPost, u.String(), bytes.NewBufferString(params.Encode()))
 	if err != nil {
