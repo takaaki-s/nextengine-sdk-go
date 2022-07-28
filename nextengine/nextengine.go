@@ -24,16 +24,21 @@ const (
 	Redirect = "redirect"
 )
 
-// TokenReaderWriter is API token write/read interface
+// TokenReaderWriter provides read & write access to tokens
 // If you want to change the storage location of API token to DB or session, you need to implement this interface
 type TokenReaderWriter interface {
-	Token(context.Context) (*entity.Token, error)
-	Save(context.Context, *entity.Token) error
+	TokenReader
+	TokenWriter
 }
 
-// TokenGetter is interface
-type TokenGetter interface {
-	TokenValue() *entity.Token
+// TokenReader provides retrieval for access tokens
+type TokenReader interface {
+	Read(context.Context) (*entity.Token, error)
+}
+
+// TokenWriter provides storage for access tokens
+type TokenWriter interface {
+	Write(context.Context, *entity.Token) error
 }
 
 // Client is Structure holding the settings of NextEngine API client
@@ -112,8 +117,8 @@ func (c *Client) Authorize(ctx context.Context, uid, state string) (*entity.Auth
 
 // APIExecute is Execute the API and return the result
 // Please specify a path starting with / for endpoint
-func (c *Client) APIExecute(ctx context.Context, endpoint string, params map[string]string, entity TokenGetter) error {
-	tok, err := c.TokenRepository.Token(ctx)
+func (c *Client) APIExecute(ctx context.Context, endpoint string, params map[string]string, entity TokenReader) error {
+	tok, err := c.TokenRepository.Read(ctx)
 	if err != nil {
 		return err
 	}
@@ -128,7 +133,7 @@ func (c *Client) APIExecute(ctx context.Context, endpoint string, params map[str
 
 // APIExecuteNoRequiredLogin is Execute API that does not require login and return the result
 // Please specify a path starting with / for endpoint
-func (c *Client) APIExecuteNoRequiredLogin(ctx context.Context, endpoint string, params map[string]string, entity TokenGetter) error {
+func (c *Client) APIExecuteNoRequiredLogin(ctx context.Context, endpoint string, params map[string]string, entity TokenReader) error {
 	v := url.Values{
 		"client_id":     []string{c.clientID},
 		"client_secret": []string{c.clientSecret},
@@ -137,7 +142,7 @@ func (c *Client) APIExecuteNoRequiredLogin(ctx context.Context, endpoint string,
 	return c.apiRequest(ctx, endpoint, v, params, entity)
 }
 
-func (c *Client) apiRequest(ctx context.Context, endpoint string, v url.Values, params map[string]string, entity TokenGetter) error {
+func (c *Client) apiRequest(ctx context.Context, endpoint string, v url.Values, params map[string]string, entity TokenReader) error {
 	for key, val := range params {
 		v.Add(key, val)
 	}
@@ -149,7 +154,7 @@ func (c *Client) apiRequest(ctx context.Context, endpoint string, v url.Values, 
 	return nil
 }
 
-func (c *Client) request(ctx context.Context, endpoint string, params url.Values, entity TokenGetter) error {
+func (c *Client) request(ctx context.Context, endpoint string, params url.Values, entity TokenReader) error {
 	u, _ := url.Parse(apiHost)
 	u.Path = path.Join(u.Path, endpoint)
 
@@ -169,10 +174,13 @@ func (c *Client) request(ctx context.Context, endpoint string, params url.Values
 		return err
 	}
 
-	tok := entity.TokenValue()
+	tok, err := entity.Read(ctx)
+	if err != nil {
+		return err
+	}
 
 	if tok.AccessToken != "" && tok.RefreshToken != "" {
-		if err := c.TokenRepository.Save(ctx, tok); err != nil {
+		if err := c.TokenRepository.Write(ctx, tok); err != nil {
 			return err
 		}
 	}

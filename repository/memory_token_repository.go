@@ -19,7 +19,7 @@ func NewMemoryTokenRepository(accessToken, refreshToken string) *MemoryTokenRepo
 	}
 }
 
-func (tr *MemoryTokenRepository) Token(_ context.Context) (*entity.Token, error) {
+func (tr *MemoryTokenRepository) Read(_ context.Context) (*entity.Token, error) {
 	tok := &entity.Token{
 		AccessToken:         tr.t.AccessToken,
 		RefreshToken:        tr.t.RefreshToken,
@@ -30,7 +30,7 @@ func (tr *MemoryTokenRepository) Token(_ context.Context) (*entity.Token, error)
 	return tok, nil
 }
 
-func (tr *MemoryTokenRepository) Save(_ context.Context, tok *entity.Token) error {
+func (tr *MemoryTokenRepository) Write(_ context.Context, tok *entity.Token) error {
 	tr.t.AccessToken = tok.AccessToken
 	tr.t.RefreshToken = tok.RefreshToken
 	tr.t.AccessTokenEndDate = tok.AccessTokenEndDate

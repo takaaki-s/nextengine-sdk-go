@@ -1,5 +1,7 @@
 package entity
 
+import "context"
+
 // Token is Structure that represents a api token
 type Token struct {
 	AccessToken         string `json:"access_token"`
@@ -8,7 +10,7 @@ type Token struct {
 	RefreshTokenEndDate string `json:"refresh_token_end_date"`
 }
 
-// TokenValue returing struct refference
-func (t *Token) TokenValue() *Token {
-	return t
+// Token returing struct refference
+func (t *Token) Read(ctx context.Context) (*Token, error) {
+	return t, nil
 }

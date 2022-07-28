@@ -63,7 +63,7 @@ func (q *QueryBuilder) Where(target, operator, value string) *QueryBuilder {
 	return q
 }
 
-func (q *QueryBuilder) Fetch(ctx context.Context, e nextengine.TokenGetter) error {
+func (q *QueryBuilder) Fetch(ctx context.Context, e nextengine.TokenReader) error {
 	uri, err := getAPI(e)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (q *QueryBuilder) Fetch(ctx context.Context, e nextengine.TokenGetter) erro
 	return q.do(ctx, e, uri)
 }
 
-func (q *QueryBuilder) Count(ctx context.Context, e nextengine.TokenGetter) error {
+func (q *QueryBuilder) Count(ctx context.Context, e nextengine.TokenReader) error {
 	uri, err := getAPI(e)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (q *QueryBuilder) Count(ctx context.Context, e nextengine.TokenGetter) erro
 	return q.do(ctx, e, uri)
 }
 
-func (q *QueryBuilder) do(ctx context.Context, e nextengine.TokenGetter, uri string) error {
+func (q *QueryBuilder) do(ctx context.Context, e nextengine.TokenReader, uri string) error {
 
 	params := make(map[string]string)
 	if len(q.fields) > 0 {
