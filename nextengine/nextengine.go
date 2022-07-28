@@ -24,9 +24,9 @@ const (
 	Redirect = "redirect"
 )
 
-// Toker is API token write/read interface
+// TokenReaderWriter is API token write/read interface
 // If you want to change the storage location of API token to DB or session, you need to implement this interface
-type Toker interface {
+type TokenReaderWriter interface {
 	Token(context.Context) (*entity.Token, error)
 	Save(context.Context, *entity.Token) error
 }
@@ -42,7 +42,7 @@ type Client struct {
 	clientSecret    string
 	redirectURI     string
 	httpClient      *http.Client
-	TokenRepository Toker
+	TokenRepository TokenReaderWriter
 }
 
 // NewDefaultClient Returns an instance of the API client with default settings
@@ -53,7 +53,7 @@ func NewDefaultClient(clientID, clientSecret, redirectURI, accessToken, refreshT
 }
 
 // NewClient Returns an instance of the API client
-func NewClient(clientID, clientSecret, redirectURI string, httpClient *http.Client, tr Toker) *Client {
+func NewClient(clientID, clientSecret, redirectURI string, httpClient *http.Client, tr TokenReaderWriter) *Client {
 	return &Client{
 		clientID:        clientID,
 		clientSecret:    clientSecret,
